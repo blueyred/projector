@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scrolling Rectangles Skype</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let rectWidth;
+
+let numRects = 4;
+
+let speed = 2;
+let offset = 0;
+
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    rectWidth = canvas.width / (numRects * 2);
+    drawRectangles();
+}
+
+function drawRectangles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < numRects; i++) {
+        ctx.fillStyle = `hsl(0%, 0%, 0%)`;
+        ctx.fillRect((2* i * rectWidth) - offset, 0, rectWidth, canvas.height);
+        ctx.fillRect((2* i * rectWidth) - offset + canvas.width, 0, rectWidth, canvas.height);
+    }
+}
+
+function animate() {
+    offset += speed;
+    if (offset >= 2*rectWidth) {
+        offset = 0;
+    }
+
+    drawRectangles();
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animate();
+
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if(e.key === "a") {
+        speedDown();
+    }
+    if(e.key === "s") {
+        speedUp();
+    }
+    if(e.key === "z") {
+        thinner();
+    }
+    if(e.key === "x") {
+        wider();
+    }
+
+  },
+  false,
+);
+
+function wider(){
+    changeWidth(-1);
+}
+
+function thinner(){
+    changeWidth(1);
+}
+
+function changeWidth(rectChange){
+    numRects += rectChange;
+    resizeCanvas();
+}
+
+function speedUp(){
+    changeSpeed(0.5);
+}
+function speedDown(){
+    changeSpeed(2);
+}
+
+function changeSpeed(multiplier){
+    speed *= multiplier;
+    //animelement.style["animation-duration"] = time + "s";
+}
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+
+</script>
+</body>
+</html>

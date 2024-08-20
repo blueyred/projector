@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Gradient Scroller</title>
+  <meta name="author" content="">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+   margin:0;
+   padding:0;
+   width:100vw;
+   height:100vh;   
+   overflow: hidden;
+} 
+
+#animated {
+  background-color: #FFF; 
+  height: 100%;
+  width: 100%; 
+  animation-duration: 10s;
+  animation-name: pulse0;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+
+}
+
+@keyframes pulse0 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #000;}
+  55% { background-color: #000;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+  /* The image width */
+}
+@keyframes pulse1 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #111;}
+  55% { background-color: #111;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+  /* The image width */
+}
+@keyframes pulse2 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #222;}
+  55% { background-color: #222;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+  /* The image width */
+}
+@keyframes pulse3 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #333;}
+  55% { background-color: #333;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse4 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #444;}
+  55% { background-color: #444;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse5 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #555;}
+  55% { background-color: #555;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse6 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #666;}
+  55% { background-color: #666;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse7 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #777;}
+  55% { background-color: #777;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse8 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #888;}
+  55% { background-color: #888;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+@keyframes pulse9 {
+  0% { background-color: #FFF;}
+  10% { background-color: #FFF;}
+  45% { background-color: #999;}
+  55% { background-color: #999;}
+  90% {background-color: #FFF;}
+  100% {background-color: #FFF;}
+}
+
+
+
+</style>
+</head>
+
+<body>
+
+  <div id="animated"> </div>
+
+<script>
+var animelement = document.getElementById("animated");
+var time = 10.00;
+var pulse = 0;
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+function speedUp(){
+    changeSpeed(0.5);
+}
+function speedDown(){
+    changeSpeed(2);
+}
+
+function changeSpeed(multiplier){
+    time *= multiplier;
+    animelement.style["animation-duration"] = time + "s";
+}
+
+function lighter(){
+  pulse = parseInt(pulse + 1); 
+  if(pulse > 9){
+    pulse = 9;
+  }
+  setpulse(pulse);
+}
+function darker(){
+  pulse = parseInt(pulse - 1);
+  if(pulse < 0){
+    pulse = 0;
+  }
+  setpulse(pulse);
+
+}
+
+function setpulse(pulse){
+  animelement.style["animation-name"] = "pulse" + pulse;
+}
+
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if(e.key === "a") {
+        speedDown();
+    }
+    if(e.key === "s") {
+        speedUp();
+    }
+    if(e.key === "z") {
+        lighter();
+    }
+    if(e.key === "x") {
+        darker();
+    }
+
+  },
+  false,
+);
+</script>
+</body>
+
+</html>

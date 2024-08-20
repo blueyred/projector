@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Gradient BG Scroller</title>
+  <meta name="author" content="">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+   margin:0;
+   padding:0;
+   width:100vw;
+   height:100vh;
+   overflow: hidden;
+} 
+
+#animated{
+  background-image: linear-gradient(90deg, #FFF 25%, #000 25%, #000 50%, #FFF 50%, #FFF 75%, #000 75%, #000 100%); 
+  background-size: 50vw 256px;
+  height: 100%;
+  width: 100vw; /* The image width times 3 */
+  /*transform: translate3d(-200vw,0,0);*/
+  /*animation: slide3d 60s linear infinite;*/
+  animation-duration: 60s;
+  animation-name: bgmove;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+
+
+}
+
+@keyframes bgmove {
+  0% { background-position: 0 0;}
+  100% {background-position: 100vw 0;}
+  /* The image width */
+}
+
+  </style>
+</head>
+
+<body>
+  <div id="animated"> </div>
+
+<script>
+var animelement = document.getElementById("animated");
+var time = 60.00;
+var barwidth = 50.00;
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+function wider(){
+    changeWidth(2);
+}
+
+function thinner(){
+    changeWidth(0.5);
+}
+
+function changeWidth(multiplier){
+    barwidth *= multiplier;
+    animelement.style["background-size"] = barwidth + "vw 256px";
+    animelement.style.backgroundImage = 'linear-gradient(90deg, #FFF 25%, #000 25%, #000 50%, #FFF 50%, #FFF 75%, #000 75%, #000 100%)';
+}
+
+function speedUp(){
+    changeSpeed(0.5);
+}
+function speedDown(){
+    changeSpeed(2);
+}
+
+function changeSpeed(multiplier){
+    time *= multiplier;
+    animelement.style["animation-duration"] = time + "s";
+}
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if(e.key === "a") {
+        speedDown();
+    }
+    if(e.key === "s") {
+        speedUp();
+    }
+    if(e.key === "z") {
+        thinner();
+    }
+    if(e.key === "x") {
+        wider();
+    }
+
+  },
+  false,
+);
+</script>
+</body>
+
+</html>

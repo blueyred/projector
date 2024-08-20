@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fixed width Scrolling Rectangles Skype</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+var rectWidth = 64;
+var numRects = 2;
+var rectMargin;
+
+var speed = 2;
+var offset = 0;
+
+var direction = -1;
+
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    var availableMargin = canvas.width - (numRects * rectWidth);
+    rectMargin = availableMargin / numRects;
+    drawRectangles();
+}
+
+function drawRectangles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+
+    // fillRect(x, y, width, height)
+    ctx.fillStyle = 'hsl(0,0%,0%)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < numRects; i++) {
+        ctx.fillStyle = 'hsl(0,0%,100%)';//'hsl(50%, 60%, 70%)';
+        ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction), 0, rectWidth, canvas.height);
+        ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction) + canvas.width, 0, rectWidth, canvas.height); //the "offcanvas element" ahead
+        ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction) - canvas.width, 0, rectWidth, canvas.height); //the "offcanvas element" behind
+    }
+
+    
+}
+
+function animate() {
+    offset += speed;
+    if (offset >= canvas.width) {
+        offset = 0;
+    }
+
+    drawRectangles();
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animate();
+
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if(e.key === "a") {
+        speedDown();
+    }
+    if(e.key === "s") {
+        speedUp();
+    }
+    if(e.key === "z") {
+        lessBars();
+    }
+    if(e.key === "x") {
+        moreBars();
+    }
+
+    if(e.key === "q") {
+        thinner();
+    }
+    if(e.key === "w") {
+        thicker();
+    }
+    if(e.key === "d") {
+        direction *= -1;
+    }
+    
+
+
+
+  },
+  false,
+);
+
+function thinner(){
+    changeWidth(-1);
+}
+
+function thicker(){
+    changeWidth(1);
+}
+
+function changeWidth(rectChange){
+    if(rectWidth <= 64){
+        if( rectChange < 0){
+            rectWidth *= 0.5;
+        }else{
+            rectWidth *= 2;
+        }
+    }else{
+        if( rectChange < 0){
+            rectWidth -= 64;
+        }else{
+            rectWidth += 64;
+        }
+    }
+    console.log(rectWidth);
+    resizeCanvas();
+}
+
+function lessBars(){
+    changeRects(-1);
+}
+
+function moreBars(){
+    changeRects(1);
+}
+
+function changeRects(rectChange){
+    numRects += rectChange;
+    if(numRects < 1){
+        numRects = 1;
+    }
+    console.log(numRects);
+    
+    resizeCanvas();
+}
+
+function speedUp(){
+    changeSpeed(2);
+}
+function speedDown(){
+    changeSpeed(0.5);
+}
+
+function changeSpeed(multiplier){
+    speed *= multiplier;
+    //animelement.style["animation-duration"] = time + "s";
+}
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+
+</script>
+</body>
+</html>
