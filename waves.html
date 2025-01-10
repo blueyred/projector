@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S-Curve Waves</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let time = 0;
+const waves = [];
+let lineWidth;
+let offset;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    lineWidth = (canvas.height * (0.03 + Math.random() * 0.02)) + 0.03; // 0.1 to 0.3 of screen height
+    offset = canvas.height * 0.1;
+    initWaves();
+}
+
+function initWaves() {
+    waves.length = 0; // Clear existing waves
+    let numWaves = Math.ceil(canvas.height / offset) + 2;
+
+    for (let i = 0; i < numWaves; i++) {
+        waves.push({
+            amplitude: lineWidth * 0.7,
+            wavelength: canvas.width * (Math.random() * 0.5 + 0.5),
+            speed: Math.random() * 0.06 + 0.02,
+            phase: Math.random() * 2 * Math.PI,
+            //color: i % 2 === 0 ? 'hsl(170,100%,50%)' : 'hsl(10,100%,50%)',
+            color: 'hsl(0,0%,100%)',
+            yOffset: i * offset
+        });
+    }
+}
+
+function drawWave(wave) {
+    ctx.beginPath();
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = wave.color;
+
+    for (let x = -20; x < canvas.width+20; x++) {
+        const y = wave.yOffset + wave.amplitude * Math.sin((x / wave.wavelength + time * wave.speed + wave.phase) * 2 * Math.PI);
+        ctx.lineTo(x, y);
+    }
+
+    ctx.stroke();
+}
+
+function drawWaves() {
+    ctx.fillStyle = 'hsl(0,0%,0%)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    waves.forEach(drawWave);
+}
+
+function animate() {
+    time += 0.1;
+    drawWaves();
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animate();
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if(e.key === "a") {
+        speedDown();
+    }
+    if(e.key === "s") {
+        speedUp();
+    }
+    if(e.key === "z") {
+        thinner();
+    }
+    if(e.key === "x") {
+        thicker();
+    }
+  },
+  false,
+);
+
+function thicker(){
+    //lineWidth = Math.min(lineWidth * 1.2, canvas.height * 0.3);
+    //offset = lineWidth;
+    //initWaves();
+    lineWidth *= 1.5;
+}
+
+function thinner(){
+    lineWidth *= 0.8;
+    //waves.forEach(wave => wave.speed *= 1.2);
+    //lineWidth = Math.max(lineWidth * 0.8, canvas.height * 0.1);
+    //offset = lineWidth;
+    //initWaves();
+}
+
+function speedUp(){
+    waves.forEach(wave => wave.speed *= 1.2);
+}
+
+function speedDown(){
+    waves.forEach(wave => wave.speed *= 0.8);
+}
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+</script>
+</body>
+</html>
