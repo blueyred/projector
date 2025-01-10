@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swirling Balls</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+var numBalls = 100; // Initial number of balls
+var maxRadius = 50; // Maximum radius of a ball
+
+var balls = [];
+
+// Physics parameters
+var G = 0.001; // Gravitational constant
+var minDist = maxRadius * 4; // Minimum distance for repulsion
+var minDistSquared = minDist * minDist; // Square of the minimum distance
+var maxDist = maxRadius * 8; // Maximum distance for attraction
+var maxDistSquared = maxDist * maxDist; // Square of the maximum distance
+var maxVelocity = 5; // Maximum allowed velocity
+var maxVelocitySquared = maxVelocity * maxVelocity; // Square of the maximum velocity
+var edgeRepulsionFactor = 0.5; // Strength of the edge repulsion
+var lineWidth = 2;
+
+
+const white = 'hsl(0,0%,100%)';
+const black = 'hsl(0,0%,0%)';
+
+var foreColor = white;
+var backColor = black;
+
+function Ball(x, y, radius, dx, dy) {
+  this.x = x;
+  this.y = y;
+  this.radius = radius;
+  this.linewidth = maxRadius * 0.1;//radius * 0.16667;
+  this.dx = dx;
+  this.dy = dy;
+  this.mass = Math.PI * radius * radius; // Mass proportional to area
+  //this.color = `hsl(${Math.random() * 360}, 100%, 50%)`; // Random color
+  this.color = foreColor;
+
+  this.circledraw = function() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.closePath();
+  };
+
+  this.draw = function() {
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.linewidth;
+
+    // Draw three concentric circles
+    for (let i = 1; i <= 3; i++) {
+      let r = this.radius * (i / 3); // Radius of the current circle
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r, 0, Math.PI * 2, false);
+      ctx.stroke();
+      ctx.closePath();
+    }
+  };
+
+  this.update = function() {
+    // Calculate gravitational forces from other balls
+    for (let i = 0; i < balls.length; i++) {
+      if (balls[i] === this) continue; // Skip self-interaction
+
+      let dx = balls[i].x - this.x;
+      let dy = balls[i].y - this.y;
+      let distanceSquared = dx * dx + dy * dy;
+
+      if (distanceSquared < maxDistSquared && distanceSquared > minDistSquared) {
+        // Attraction (inverse square law)
+        let distance = Math.sqrt(distanceSquared);
+        let force = G * this.mass * balls[i].mass / distanceSquared;
+        let angle = Math.atan2(dy, dx);
+        this.dx += force * Math.cos(angle) / this.mass;
+        this.dy += force * Math.sin(angle) / this.mass;
+      } else if (distanceSquared < minDistSquared) {
+        // Repulsion (inverse square law)
+        let distance = Math.sqrt(distanceSquared);
+        let force = -G * this.mass * balls[i].mass / distanceSquared;
+        let angle = Math.atan2(dy, dx);
+        this.dx += force * Math.cos(angle) / this.mass;
+        this.dy += force * Math.sin(angle) / this.mass;
+      }
+    }
+
+    // Limit velocity
+    let velocitySquared = this.dx * this.dx + this.dy * this.dy;
+    if (velocitySquared > maxVelocitySquared) {
+      let scale = maxVelocity / Math.sqrt(velocitySquared);
+      this.dx *= scale;
+      this.dy *= scale;
+    }
+
+    // Edge repulsion
+    let edgeDistanceX = 2 * this.radius;
+    let edgeDistanceY = 2 * this.radius;
+
+    if (this.x < edgeDistanceX) {
+      this.dx += edgeRepulsionFactor * (edgeDistanceX - this.x) / edgeDistanceX;
+    } else if (this.x > canvas.width - edgeDistanceX) {
+      this.dx -= edgeRepulsionFactor * (this.x - (canvas.width - edgeDistanceX)) / edgeDistanceX;
+    }
+
+    if (this.y < edgeDistanceY) {
+      this.dy += edgeRepulsionFactor * (edgeDistanceY - this.y) / edgeDistanceY;
+    } else if (this.y > canvas.height - edgeDistanceY) {
+      this.dy -= edgeRepulsionFactor * (this.y - (canvas.height - edgeDistanceY)) / edgeDistanceY;
+    }
+
+    // Update position based on velocity
+    this.x += this.dx;
+    this.y += this.dy;
+
+    this.draw();
+  };
+}
+
+function generateBalls() {
+  balls = []; // Clear existing balls
+  for (let i = 0; i < numBalls; i++) {
+    let radius = Math.random() * maxRadius + (maxRadius * 0.5); // Radius between 10 and maxRadius
+    let x = Math.random() * (canvas.width - radius * 2) + radius;
+    let y = Math.random() * (canvas.height - radius * 2) + radius;
+    let dx = (Math.random() - 0.5) * 2; // Small initial random velocity
+    let dy = (Math.random() - 0.5) * 2;
+    balls.push(new Ball(x, y, radius, dx, dy));
+  }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = backColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+  for (let i = 0; i < balls.length; i++) {
+    balls[i].update();
+  }
+
+  requestAnimationFrame(animate);
+}
+
+// Event Listeners
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  generateBalls(); // Regenerate balls on resize
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'z') {
+    lessBalls();
+  }
+  if (e.key === 'x') {
+    moreBalls();
+  }
+  if (e.key === 'q') {
+    smaller();
+  }
+  if (e.key === 'w') {
+    bigger();
+  }
+});
+
+// Control Functions
+function lessBalls() {
+  changeNumBalls(-1);
+}
+
+function moreBalls() {
+  changeNumBalls(1);
+}
+
+function changeNumBalls(change) {
+  numBalls += change;
+  if (numBalls < 1) {
+    numBalls = 1;
+  }
+  generateBalls();
+}
+
+function smaller() {
+  changeMaxSize(-5);
+}
+
+function bigger() {
+  changeMaxSize(5);
+}
+
+function changeMaxSize(change) {
+    maxRadius += change;
+  if (maxRadius < 10) {
+    maxRadius = 10;
+  }
+  generateBalls();
+}
+
+// Initialize
+generateBalls();
+animate();
+</script>
+</body>
+</html>

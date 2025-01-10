@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expanding Concentric Circles</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Configuration variables
+let numStartingPoints = 3;
+const maxRadius = 80;
+const minSpeed = 0.5;
+const maxSpeed = 0.5;
+let circleThickness = 15;
+
+let startingPoints = [];
+const black = 'hsl(0,0%,0%)';
+const white = 'hsl(0,0%,100%)';
+var frontColor = white;
+var backColor = black;
+let maxDimension;
+
+const twoPi = 2.0 * Math.PI;
+let isWarmedUp = false;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  maxDimension = Math.max(canvas.width, canvas.height);
+  if (isWarmedUp) {
+    warmupCircles(); // Re-warmup if resized after initial warmup
+  }
+}
+
+function initStartingPoints() {
+  startingPoints = [];
+  for (let i = 0; i < numStartingPoints; i++) {
+    startingPoints.push({
+      x: Math.round(Math.random() * canvas.width),
+      y: Math.round(Math.random() * canvas.height),
+      speed: minSpeed + Math.random() * (maxSpeed - minSpeed),
+      circles: [{ radius: 0 }]
+    });
+  }
+}
+
+function drawCircles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = backColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = frontColor;
+  ctx.lineWidth = circleThickness;
+  ctx.beginPath();
+
+  for (let point of startingPoints) {
+    const numCircles = point.circles.length;
+    for (let i = 0; i < numCircles; i++) {
+      let circle = point.circles[i];
+      ctx.moveTo(point.x + circle.radius, point.y);
+      ctx.arc(point.x, point.y, circle.radius, 0, twoPi);
+      // Expand the circle
+      circle.radius += point.speed;
+    }
+
+    // Add a new circle if the current one reaches maxRadius, only if not warmed up
+    if (!isWarmedUp && numCircles > 0 && point.circles[numCircles - 1].radius >= maxRadius) {
+      point.circles.push({ radius: 0 });
+    }
+
+    // Remove circles that are offscreen, only if not warmed up
+    if (!isWarmedUp) {
+      while (numCircles > 0 && point.circles[0].radius > maxDimension) {
+        point.circles.shift();
+      }
+    }
+  }
+  ctx.stroke();
+}
+
+function animate() {
+  drawCircles();
+  requestAnimationFrame(animate);
+}
+
+function warmupCircles() {
+  for (let point of startingPoints) {
+    let maxCircles = Math.ceil(Math.max(canvas.width, canvas.height) / maxRadius) + 1;
+    point.circles = [];
+    let offset = maxRadius - (point.speed * (maxRadius / point.speed));
+    for (let i = 0; i < maxCircles; i++) {
+      point.circles.push({ radius: i * maxRadius + offset });
+    }
+  }
+  isWarmedUp = true;
+}
+
+
+window.addEventListener('resize', debounce(resizeCanvas, 250));
+
+resizeCanvas();
+initStartingPoints();
+animate();
+
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+    if (e.key === "a") {
+      speedDown();
+    }
+    if (e.key === "s") {
+      speedUp();
+    }
+    if (e.key === "z") {
+      lessCircles();
+    }
+    if (e.key === "x") {
+      moreCircles();
+    }
+    if (e.key === "q") {
+      thinner();
+    }
+    if (e.key === "w") {
+      thicker();
+    }
+    if (e.key === "k") {
+      warmupCircles();
+    }
+  },
+  false,
+);
+
+function thinner() {
+  changeThickness(-1);
+}
+
+function thicker() {
+  changeThickness(1);
+}
+
+function changeThickness(change) {
+  circleThickness += change;
+  if (circleThickness < 1) {
+    circleThickness = 1;
+  }
+}
+
+function lessCircles() {
+  changeNumCircles(-1);
+}
+
+function moreCircles() {
+  changeNumCircles(1);
+}
+
+function changeNumCircles(change) {
+  numStartingPoints += change;
+  if (numStartingPoints < 1) {
+    numStartingPoints = 1;
+  }
+  initStartingPoints();
+}
+
+function speedUp() {
+  changeSpeed(0.5);
+}
+
+function speedDown() {
+  changeSpeed(-0.5);
+}
+
+function changeSpeed(change) {
+    maxSpeed += change;
+    if(maxSpeed < minSpeed){
+        maxSpeed = minSpeed + 1;
+    }
+    initStartingPoints();
+}
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+
+function debounce(func, delay) {
+  let timeoutId;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
+
+</script>
+</body>
+</html>

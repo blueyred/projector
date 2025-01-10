@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broken Stripes</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+var stripeWidth = 64;
+var numStripes = 8;
+var stripeMargin;
+var blockHeight = 32; // Height of each block in the stripe
+var gapHeight = 32;
+
+var speed = 2;
+var offset = 0;
+
+var direction = -1;
+var isHorizontal = false; // Flag for orientation
+var stripes = []; // Array to store stripe data
+
+var white = 'hsl(0,0%,100%)';
+var black = 'hsl(0,0%,0%)';
+
+var backg = black;
+var frontg = white;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (isHorizontal) {
+        stripeMargin = (canvas.width - (numStripes * stripeWidth)) / numStripes;
+    } else {
+        stripeMargin = (canvas.width - (numStripes * stripeWidth)) / numStripes;
+    }
+    generateStripes();
+    drawStripes();
+}
+
+function generateStripes() {
+    stripes = []; // Clear existing stripes
+
+    for (let i = 0; i < numStripes; i++) {
+        let blocks = [];
+        let stripePos = i * (stripeWidth + stripeMargin);
+
+        let currentY = -canvas.height; // Start off-screen
+
+        while (currentY < canvas.height) {
+            let blockLength = Math.floor(Math.random() * 4) + 1.0; // 1 to 3 blocks long
+            if (Math.random() > 0.35) { // 50% chance to create a block
+                blocks.push({
+                    start: currentY,
+                    length: blockLength
+                });
+            }
+            currentY += blockLength * blockHeight + (((Math.random() * 2)+ 0.2) * gapHeight); // Add gap
+        }
+
+        stripes.push({
+            position: stripePos,
+            blocks: blocks
+        });
+    }
+}
+
+function drawStripes() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = backg;//'hsl(0,0%,0%)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = frontg;//'hsl(0,0%,100%)';
+    for (let stripe of stripes) {
+        for (let block of stripe.blocks) {
+            let x = stripe.position;
+            let y = block.start - (offset * direction);
+            let w = stripeWidth;
+            let h = block.length * blockHeight;
+
+            // Start off-screen and wrap-around
+            if (y + h < 0) {
+                block.start += canvas.height * 2 + h; // Move to bottom if off-screen at top
+            } else if (y > canvas.height) {
+                block.start -= canvas.height * 2 + h; // Move to top if off-screen at bottom
+            }
+
+            y = block.start - (offset * direction); // Recalculate y after adjustment
+
+            ctx.fillRect(x, y, w, h);
+
+            // Duplicate on other side for continuous wrap-around
+            if (isHorizontal) {
+                ctx.fillRect(x + canvas.width, y, w, h);
+                ctx.fillRect(x - canvas.width, y, w, h);
+            }
+        }
+    }
+}
+
+function animate() {
+    offset += speed;
+
+    drawStripes();
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animate();
+
+document.addEventListener(
+    "keydown",
+    (e) => {
+        if (e.key === "f") {
+            toggleFullScreen();
+        }
+        if (e.key === "a") {
+            speedDown();
+        }
+        if (e.key === "s") {
+            speedUp();
+        }
+        if (e.key === "z") {
+            lessStripes();
+        }
+        if (e.key === "x") {
+            moreStripes();
+        }
+        if (e.key === "q") {
+            thinner();
+        }
+        if (e.key === "w") {
+            thicker();
+        }
+        if (e.key === "d") {
+            direction *= -1;
+        }
+        if (e.key === "h") {
+            toggleOrientation();
+        }
+        if (e.key === "r") {
+            generateStripes(); // Regenerate stripes on 'r' key press
+        }
+        if(e.key === "i"){
+            invert()
+        }
+        if (e.key === "n") {
+            lessBlocks();
+        }
+        if (e.key === "m") {
+            moreBlocks();
+        }
+    },
+    false,
+);
+
+function toggleOrientation() {
+    isHorizontal = !isHorizontal;
+    resizeCanvas();
+}
+
+function thinner() {
+    changeWidth(-1);
+}
+
+function thicker() {
+    changeWidth(1);
+}
+
+function changeWidth(widthChange) {
+    if (stripeWidth <= 64) {
+        if (widthChange < 0) {
+            stripeWidth *= 0.5;
+        } else {
+            stripeWidth *= 2;
+        }
+    } else {
+        if (widthChange < 0) {
+            stripeWidth -= 64;
+        } else {
+            stripeWidth += 64;
+        }
+    }
+    console.log(stripeWidth);
+    resizeCanvas();
+}
+
+function lessStripes() {
+    changeStripes(-1);
+}
+
+function moreStripes() {
+    changeStripes(1);
+}
+function lessBlocks() {
+    changeBlocks(0.5);
+}
+
+function moreBlocks() {
+    changeBlocks(2);
+}
+
+function changeBlocks(blocksChange) {
+    blockHeight *= blocksChange
+    resizeCanvas();
+}
+
+function changeStripes(stripeChange) {
+    numStripes += stripeChange;
+    if (numStripes < 1) {
+        numStripes = 1;
+    }
+    console.log(numStripes);
+    resizeCanvas();
+}
+
+function speedUp() {
+    changeSpeed(2);
+}
+
+function speedDown() {
+    changeSpeed(0.5);
+}
+
+function changeSpeed(multiplier) {
+    speed *= multiplier;
+}
+
+function invert(){
+    if(frontg == white){
+        frontg = black;
+        backg = white;
+    }else{
+        frontg = white;
+        backg = black;
+    }
+
+}
+
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+    }
+}
+</script>
+</body>
+</html>

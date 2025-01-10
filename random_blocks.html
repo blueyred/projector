@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Randomly Spaced Blocks</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+var blockWidth = 64;
+var numBlocks = 5; // Initial number of blocks per row/column
+var blockMargin = 10; // Margin between blocks
+
+var speed = 2;
+var offset = 0;
+
+var direction = -1;
+var isHorizontal = false; // Flag for orientation
+var blocks = []; // Array to store block positions
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    generateBlocks();
+    drawBlocks();
+}
+
+function generateBlocks() {
+    blocks = []; // Clear existing blocks
+    let maxBlocks;
+    if (isHorizontal) {
+        maxBlocks = Math.floor(canvas.height / (blockWidth + blockMargin));
+    } else {
+        maxBlocks = Math.floor(canvas.width / (blockWidth + blockMargin));
+    }
+
+    for (let i = 0; i < numBlocks; i++) {
+        for (let j = 0; j < maxBlocks; j++) {
+            if (Math.random() > 0.5) { // 50% chance to create a block
+                let x, y;
+                if (isHorizontal) {
+                    x = Math.floor(Math.random() * canvas.width);
+                    y = j * (blockWidth + blockMargin);
+                } else {
+                    x = j * (blockWidth + blockMargin);
+                    y = Math.floor(Math.random() * canvas.height);
+                }
+                blocks.push({ x, y });
+            }
+        }
+    }
+}
+
+function drawBlocks() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'hsl(0,0%,0%)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'hsl(0,0%,100%)';
+    for (let block of blocks) {
+        let x = block.x - (isHorizontal ? 0 : offset * direction);
+        let y = block.y - (isHorizontal ? offset * direction : 0);
+        ctx.fillRect(x, y, blockWidth, blockWidth);
+
+        // Wrap around for continuous scrolling
+        if (isHorizontal) {
+            ctx.fillRect(x, y + canvas.height, blockWidth, blockWidth);
+            ctx.fillRect(x, y - canvas.height, blockWidth, blockWidth);
+        } else {
+            ctx.fillRect(x + canvas.width, y, blockWidth, blockWidth);
+            ctx.fillRect(x - canvas.width, y, blockWidth, blockWidth);
+        }
+    }
+}
+
+function animate() {
+    offset += speed;
+    if (isHorizontal) {
+        if (offset >= canvas.height) {
+            offset = 0;
+        }
+    } else {
+        if (offset >= canvas.width) {
+            offset = 0;
+        }
+    }
+
+    drawBlocks();
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animate();
+
+document.addEventListener(
+    "keydown",
+    (e) => {
+        if (e.key === "f") {
+            toggleFullScreen();
+        }
+        if (e.key === "a") {
+            speedDown();
+        }
+        if (e.key === "s") {
+            speedUp();
+        }
+        if (e.key === "z") {
+            lessBlocks();
+        }
+        if (e.key === "x") {
+            moreBlocks();
+        }
+        if (e.key === "q") {
+            thinner();
+        }
+        if (e.key === "w") {
+            thicker();
+        }
+        if (e.key === "d") {
+            direction *= -1;
+        }
+        if (e.key === "h") {
+            toggleOrientation();
+        }
+        if (e.key === "r") {
+            generateBlocks(); // Regenerate blocks on 'r' key press
+        }
+    },
+    false,
+);
+
+function toggleOrientation() {
+    isHorizontal = !isHorizontal;
+    resizeCanvas();
+}
+
+function thinner() {
+    changeWidth(-1);
+}
+
+function thicker() {
+    changeWidth(1);
+}
+
+function changeWidth(widthChange) {
+    if (blockWidth <= 64) {
+        if (widthChange < 0) {
+            blockWidth *= 0.5;
+        } else {
+            blockWidth *= 2;
+        }
+    } else {
+        if (widthChange < 0) {
+            blockWidth -= 64;
+        } else {
+            blockWidth += 64;
+        }
+    }
+    console.log(blockWidth);
+    resizeCanvas();
+}
+
+function lessBlocks() {
+    changeBlocks(-1);
+}
+
+function moreBlocks() {
+    changeBlocks(1);
+}
+
+function changeBlocks(blockChange) {
+    numBlocks += blockChange;
+    if (numBlocks < 1) {
+        numBlocks = 1;
+    }
+    console.log(numBlocks);
+    resizeCanvas();
+}
+
+function speedUp() {
+    changeSpeed(2);
+}
+
+function speedDown() {
+    changeSpeed(0.5);
+}
+
+function changeSpeed(multiplier) {
+    speed *= multiplier;
+}
+
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+    }
+}
+</script>
+</body>
+</html>

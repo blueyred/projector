@@ -8,3 +8,6 @@ HTML files to run on projectors for cool grid like effects and animations. Parti
 [lines scroll : using webgl](https://blueyred.github.io/projector/stripes-webgl.html)   
 [box pulse](https://blueyred.github.io/projector/pulse.html)  
 [line scroll : using a single element](https://blueyred.github.io/projector/gradient-scroll.html) 
+
+# Best performance
+stripes-fixed-canvas
