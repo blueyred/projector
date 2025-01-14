@@ -12,24 +12,55 @@ overflow: hidden;
 canvas {
 display: block;
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<div id="keys" style="display:none">
+    <p><b>F</b> fullscreen</p>
+    <p><b>D</b> direction</p>
+    <p><b>I</b> invert</p>
+
+    <p><b>Q</b> <b>W</b> Waves</p>
+    <p><b>A</b> <b>S</b> Speed</p>
+    <p><b>Z</b> <b>X</b> Thickness</p>
+    
+</div>
 <script>
+const keysEl = document.getElementById('keys');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+
+var white = 'hsl(0,0%,100%)';
+var black = 'hsl(0,0%,0%)';
+
+var backg = black;
+var frontg = white;
+
+var direction = -1;
 
 let time = 0;
 const waves = [];
 let lineWidth;
 let offset;
+var heightMulti = 0.1;
+const twoPI = 2 * Math.PI;
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     lineWidth = (canvas.height * (0.03 + Math.random() * 0.02)) + 0.03; // 0.1 to 0.3 of screen height
-    offset = canvas.height * 0.1;
+    offset = canvas.height * heightMulti;
     initWaves();
 }
 
@@ -42,9 +73,9 @@ function initWaves() {
             amplitude: lineWidth * 0.7,
             wavelength: canvas.width * (Math.random() * 0.5 + 0.5),
             speed: Math.random() * 0.06 + 0.02,
-            phase: Math.random() * 2 * Math.PI,
+            phase: Math.random() * twoPI,
             //color: i % 2 === 0 ? 'hsl(170,100%,50%)' : 'hsl(10,100%,50%)',
-            color: 'hsl(0,0%,100%)',
+//            color: frontg,
             yOffset: i * offset
         });
     }
@@ -53,10 +84,11 @@ function initWaves() {
 function drawWave(wave) {
     ctx.beginPath();
     ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = wave.color;
+    ctx.strokeStyle = frontg;//wave.color;
 
-    for (let x = -20; x < canvas.width+20; x++) {
-        const y = wave.yOffset + wave.amplitude * Math.sin((x / wave.wavelength + time * wave.speed + wave.phase) * 2 * Math.PI);
+    for (let x = -20; x < canvas.width+20; x = x+5) {
+        //const y = wave.yOffset + wave.amplitude * Math.sin((x / wave.wavelength + time * wave.speed + wave.phase) * twoPI);
+        const y = wave.yOffset + wave.amplitude * Math.sin((direction * x / wave.wavelength + time * wave.speed + wave.phase) * twoPI);
         ctx.lineTo(x, y);
     }
 
@@ -64,10 +96,11 @@ function drawWave(wave) {
 }
 
 function drawWaves() {
-    ctx.fillStyle = 'hsl(0,0%,0%)';
+
+    ctx.fillStyle = backg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    waves.forEach(drawWave);
+    waves.forEach(drawWave);    
 }
 
 function animate() {
@@ -98,10 +131,46 @@ document.addEventListener(
     if(e.key === "x") {
         thicker();
     }
+
+    if(e.key === "q") {
+        lessWaves();
+    }
+    if(e.key === "w") {
+        moreWaves();
+    }
+    if(e.key === "d") {
+        direction *= -1;
+    }
+
+    if(e.key === "i") {
+        invert();
+    }
+
+    if (e.key === "k") {
+        toggleKeys();
+    }
   },
   false,
 );
 
+function moreWaves(){
+    numWaves(0.05);
+}
+
+function lessWaves(){
+    numWaves(-0.05);
+}
+function numWaves(multi){
+    heightMulti += multi;
+    if(heightMulti < 0.05){
+        heightMulti = 0.05;
+    }
+    if(heightMulti > 0.9){
+        heightMulti = 0.9;
+    }
+    resizeCanvas();
+
+}
 function thicker(){
     //lineWidth = Math.min(lineWidth * 1.2, canvas.height * 0.3);
     //offset = lineWidth;
@@ -115,6 +184,16 @@ function thinner(){
     //lineWidth = Math.max(lineWidth * 0.8, canvas.height * 0.1);
     //offset = lineWidth;
     //initWaves();
+}
+function invert(){
+    if(frontg == white){
+        frontg = black;
+        backg = white;
+    }else{
+        frontg = white;
+        backg = black;
+    }
+
 }
 
 function speedUp(){
@@ -131,6 +210,9 @@ function toggleFullScreen() {
   } else if (document.exitFullscreen) {
     document.exitFullscreen();
   }
+}
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
 }
 
 </script>

@@ -12,11 +12,29 @@ body {
 canvas {
   display: block;
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<div id="keys" style="display:none">
+  <p><b>F</b> fullscreen</p>
+
+  <p><b>Q</b> <b>W</b> Size</p>
+  <p><b>Z</b> <b>X</b> Num balls</p>
+  
+</div>
 <script>
+const keysEl = document.getElementById('keys');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -182,7 +200,17 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'w') {
     bigger();
   }
+  if (e.key === "k") {
+      toggleKeys();
+  }
+  if (e.key === "f") {
+      toggleFullScreen();
+  }
 });
+
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
+}
 
 // Control Functions
 function lessBalls() {
@@ -215,6 +243,14 @@ function changeMaxSize(change) {
     maxRadius = 10;
   }
   generateBalls();
+}
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
 }
 
 // Initialize

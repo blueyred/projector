@@ -12,19 +12,39 @@ body {
 canvas {
   display: block;
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<div id="keys" style="display:none">
+  <p><b>F</b> fullscreen</p>
+  <p><b>E</b> warmup</p>
+  <p><b>R</b> restart</p>
+
+  <p><b>A</b> <b>S</b> Speed + R</p>
+  <p><b>Z</b> <b>X</b> Num circles</p>
+  <p><b>Q</b> <b>W</b> Thickness</p>
+</div>
 <script>
+const keysEl = document.getElementById('keys');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
 // Configuration variables
 let numStartingPoints = 3;
 const maxRadius = 80;
-const minSpeed = 0.5;
-const maxSpeed = 0.5;
+var minSpeed = 0.5;
+var maxSpeed = 0.5;
 let circleThickness = 15;
 
 let startingPoints = [];
@@ -140,9 +160,17 @@ document.addEventListener(
     if (e.key === "w") {
       thicker();
     }
-    if (e.key === "k") {
+    if (e.key === "e") {
       warmupCircles();
     }
+
+    if (e.key === "r") {
+      restart();
+    }
+    if (e.key === "k") {
+      toggleKeys();
+    }
+
   },
   false,
 );
@@ -186,11 +214,17 @@ function speedDown() {
   changeSpeed(-0.5);
 }
 
+function restart(){
+  initStartingPoints();
+}
+
 function changeSpeed(change) {
     maxSpeed += change;
+    minSpeed += change;
     if(maxSpeed < minSpeed){
         maxSpeed = minSpeed + 1;
     }
+    
     initStartingPoints();
 }
 
@@ -211,7 +245,9 @@ function debounce(func, delay) {
     }, delay);
   };
 }
-
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
+}
 </script>
 </body>
 </html>

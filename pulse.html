@@ -27,6 +27,16 @@ body{
   animation-timing-function: linear;
 
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 
 @keyframes pulse0 {
   0% { background-color: #FFF;}
@@ -120,8 +130,15 @@ body{
 <body>
 
   <div id="animated"> </div>
-
+  <div id="keys" style="display:none">
+    <p><b>F</b> fullscreen</p>
+  
+    <p><b>A</b> <b>S</b> Speed</p>
+    <p><b>Z</b> <b>X</b> Darkness</p>
+    
+  </div>
 <script>
+const keysEl = document.getElementById('keys');
 var animelement = document.getElementById("animated");
 var time = 10.00;
 var pulse = 0;
@@ -165,7 +182,9 @@ function darker(){
 function setpulse(pulse){
   animelement.style["animation-name"] = "pulse" + pulse;
 }
-
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
+}
 
 document.addEventListener(
   "keydown",
@@ -185,6 +204,9 @@ document.addEventListener(
     if(e.key === "x") {
         darker();
     }
+    if (e.key === "k") {
+      toggleKeys();
+  }
 
   },
   false,

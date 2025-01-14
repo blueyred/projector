@@ -12,11 +12,31 @@ overflow: hidden;
 canvas {
 display: block;
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<div id="keys" style="display:none">
+    <p><b>F</b> fullscreen</p>
+    <p><b>D</b> direction</p>
+    <p><b>I</b> invert</p>
+
+    <p><b>A</b> <b>S</b> Speed</p>
+    <p><b>Z</b> <b>X</b> Num bars</p>
+    <p><b>Q</b> <b>W</b> Thickness</p>
+</div>
 <script>
+const keysEl = document.getElementById('keys');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -28,6 +48,12 @@ var speed = 2;
 var offset = 0;
 
 var direction = -1;
+
+var white = 'hsl(0,0%,100%)';
+var black = 'hsl(0,0%,0%)';
+
+var backg = black;
+var frontg = white;
 
 
 function resizeCanvas() {
@@ -43,11 +69,11 @@ function drawRectangles() {
     
 
     // fillRect(x, y, width, height)
-    ctx.fillStyle = 'hsl(0,0%,0%)';
+    ctx.fillStyle = backg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     for (let i = 0; i < numRects; i++) {
-        ctx.fillStyle = 'hsl(0,0%,100%)';//'hsl(50%, 60%, 70%)';
+        ctx.fillStyle = frontg;//'hsl(50%, 60%, 70%)';
         ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction), 0, rectWidth, canvas.height);
         ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction) + canvas.width, 0, rectWidth, canvas.height); //the "offcanvas element" ahead
         ctx.fillRect(( (i) * (rectWidth + rectMargin)) - (offset*direction) - canvas.width, 0, rectWidth, canvas.height); //the "offcanvas element" behind
@@ -99,9 +125,12 @@ document.addEventListener(
     if(e.key === "d") {
         direction *= -1;
     }
-    
-
-
+    if(e.key === "i") {
+        invert();
+    }
+    if (e.key === "k") {
+        toggleKeys();
+    }
 
   },
   false,
@@ -113,6 +142,17 @@ function thinner(){
 
 function thicker(){
     changeWidth(1);
+}
+
+function invert(){
+    if(frontg == white){
+        frontg = black;
+        backg = white;
+    }else{
+        frontg = white;
+        backg = black;
+    }
+
 }
 
 function changeWidth(rectChange){
@@ -170,7 +210,9 @@ function toggleFullScreen() {
     document.exitFullscreen();
   }
 }
-
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
+}
 
 </script>
 </body>

@@ -12,11 +12,34 @@ overflow: hidden;
 canvas {
 display: block;
 }
+#keys{
+    position: absolute;
+    bottom: 0;
+    right:0;
+    padding: 5px 20px;
+    background-color: white;
+    color: black;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<div id="keys" style="display:none">
+    <p><b>F</b> fullscreen</p>
+    <p><b>D</b> direction</p>
+    <p><b>H</b> orientation</p>
+    <p><b>R</b> regenerate</p>
+    <p><b>I</b> invert</p>
+
+    <p><b>A</b> <b>S</b> Speed</p>
+    <p><b>Z</b> <b>X</b> Num stripes</p>
+    <p><b>N</b> <b>M</b> Num blocks</p>
+    <p><b>Q</b> <b>W</b> Thickness</p>
+</div>
 <script>
+const keysEl = document.getElementById('keys');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -164,6 +187,11 @@ document.addEventListener(
         if (e.key === "m") {
             moreBlocks();
         }
+
+        if (e.key === "k") {
+            toggleKeys();
+        }
+
     },
     false,
 );
@@ -257,6 +285,10 @@ function toggleFullScreen() {
     } else if (document.exitFullscreen) {
         document.exitFullscreen();
     }
+}
+
+function toggleKeys(){
+    keysEl.style.display = keysEl.style.display === "none" ? "block" : "none";
 }
 </script>
 </body>
