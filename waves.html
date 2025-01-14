@@ -31,6 +31,7 @@ display: block;
     <p><b>D</b> direction</p>
     <p><b>I</b> invert</p>
 
+    <p><b>&larr;</b> <b>&rarr;</b> rotate</p>
     <p><b>Q</b> <b>W</b> Waves</p>
     <p><b>A</b> <b>S</b> Speed</p>
     <p><b>Z</b> <b>X</b> Thickness</p>
@@ -55,12 +56,16 @@ let lineWidth;
 let offset;
 var heightMulti = 0.1;
 const twoPI = 2 * Math.PI;
+var canvasOverdraw = canvas.width * 0.1;
+// Add rotation variable
+let rotation = 0; 
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     lineWidth = (canvas.height * (0.03 + Math.random() * 0.02)) + 0.03; // 0.1 to 0.3 of screen height
     offset = canvas.height * heightMulti;
+    canvasOverdraw = canvas.width * 0.1;
     initWaves();
 }
 
@@ -86,13 +91,28 @@ function drawWave(wave) {
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = frontg;//wave.color;
 
-    for (let x = -20; x < canvas.width+20; x = x+5) {
+    // Save the current context state
+    ctx.save(); 
+
+    // Translate to the center of the canvas
+    ctx.translate(canvas.width / 2, canvas.height / 2); 
+
+    // Rotate the context
+    ctx.rotate(rotation);
+
+    // Translate back to the original position
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+    for (let x = -canvasOverdraw; x < canvas.width+canvasOverdraw; x = x+5) {
         //const y = wave.yOffset + wave.amplitude * Math.sin((x / wave.wavelength + time * wave.speed + wave.phase) * twoPI);
         const y = wave.yOffset + wave.amplitude * Math.sin((direction * x / wave.wavelength + time * wave.speed + wave.phase) * twoPI);
         ctx.lineTo(x, y);
     }
 
     ctx.stroke();
+
+    // Restore the context to its original state
+    ctx.restore();
 }
 
 function drawWaves() {
@@ -148,6 +168,14 @@ document.addEventListener(
 
     if (e.key === "k") {
         toggleKeys();
+    }
+
+    // Example: Rotate with arrow keys
+    if (e.key === "ArrowLeft") {
+      rotation -= 0.1;
+    }
+    if (e.key === "ArrowRight") {
+      rotation += 0.1;
     }
   },
   false,
