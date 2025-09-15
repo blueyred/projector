@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dappled Light Simulator</title>
+    <style>
+        /* Basic CSS Reset to make the canvas fill the screen */
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        /* Style for the GUI panel */
+        .dg.main .close-button {
+            display: none; /* Hide the default close button */
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="dappled-canvas"></canvas>
+
+    <!-- CDN link for the dat.GUI library -->
+    <script src="dat.gui.0.7.9.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 1. SETUP ---
+            const canvas = document.getElementById('dappled-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let blobs = [];
+            let isPlaying = true;
+            let gui;
+
+            const settings = {
+                blobCount: 60,
+                minSize: 40,
+                maxSize: 150,
+                animationSpeed: 0.075,
+                swayAmount: 65,
+                blurAmount: 55,
+                contrast: 0,
+            };
+
+            const controls = {
+                'Play/Pause': togglePlay,
+                'Re-generate': generateBlobs,
+                'Go Fullscreen': goFullscreen,
+            };
+            
+            // --- 2. BLOB GENERATION & LOGIC ---
+
+            function generateBlobs() {
+                blobs = [];
+                for (let i = 0; i < settings.blobCount; i++) {
+                    const radius = settings.minSize + Math.random() * (settings.maxSize - settings.minSize);
+                    blobs.push({
+                        // Anchor point to sway around
+                        originX: Math.random() * canvas.width,
+                        originY: Math.random() * canvas.height,
+                        // Current position (initialized at origin)
+                        x: 0,
+                        y: 0,
+                        radius: radius,
+                        // Unique motion properties
+                        speed: (Math.random() * 0.5 + 0.5), // A multiplier for the master speed
+                        amplitude: (Math.random() * 0.7 + 0.3) * settings.swayAmount,
+                        angle: Math.random() * Math.PI * 2, // Starting angle
+                        angleYMultiplier: Math.random() * 0.4 + 0.8 // Creates oval paths
+                    });
+                }
+            }
+
+            // --- 3. ANIMATION LOOP ---
+
+            function animate() {
+                if (!isPlaying) {
+                    requestAnimationFrame(animate);
+                    return;
+                }
+
+                // Clear the canvas to black
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Update the position of each blob
+                blobs.forEach(blob => {
+                    blob.angle += settings.animationSpeed * blob.speed;
+                    blob.x = blob.originX + Math.sin(blob.angle) * blob.amplitude;
+                    blob.y = blob.originY + Math.cos(blob.angle * blob.angleYMultiplier) * blob.amplitude;
+                });
+
+                // Apply the filters to achieve the organic, soft-edged look
+                //ctx.filter = `blur(${settings.blurAmount}px) contrast(${settings.contrast})`;
+                ctx.filter = `blur(${settings.blurAmount}px)`;
+
+                // Draw all the blobs as a single shape for performance
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                blobs.forEach(blob => {
+                    ctx.moveTo(blob.x, blob.y); // Use moveTo to avoid connecting lines
+                    ctx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                });
+                ctx.fill();
+
+                // Reset the filter so it doesn't affect anything else (like the GUI)
+                ctx.filter = 'none';
+
+                requestAnimationFrame(animate);
+            }
+
+            // --- 4. CONTROLS & EVENT LISTENERS ---
+
+            function setupGUI() {
+                gui = new dat.GUI();
+                gui.add(settings, 'blobCount', 10, 200, 1).name('Blob Count').onChange(generateBlobs);
+                gui.add(settings, 'minSize', 5, 100, 1).name('Min Size').onChange(generateBlobs);
+                gui.add(settings, 'maxSize', 50, 300, 1).name('Max Size').onChange(generateBlobs);
+                gui.add(settings, 'animationSpeed', 0.001, 0.9, 0.001).name('Animation Speed');
+                gui.add(settings, 'swayAmount', 0, 100, 1).name('Sway Amount').onChange(generateBlobs);
+                gui.add(settings, 'blurAmount', 0, 100, 1).name('Blur');
+                //gui.add(settings, 'contrast', 10, 200, 1).name('Contrast');
+                gui.add(controls, 'Play/Pause');
+                gui.add(controls, 'Re-generate');
+                gui.add(controls, 'Go Fullscreen');
+
+                
+            }
+
+            function togglePlay() {
+                isPlaying = !isPlaying;
+            }
+
+            function goFullscreen() {
+                if (canvas.requestFullscreen) {
+                    canvas.requestFullscreen();
+                } else if (canvas.webkitRequestFullscreen) { /* Safari */
+                    canvas.webkitRequestFullscreen();
+                } else if (canvas.msRequestFullscreen) { /* IE11 */
+                    canvas.msRequestFullscreen();
+                }
+            }
+
+            // --- 5. INITIALIZATION ---
+
+            function handleResize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                generateBlobs(); // Regenerate blobs to fit the new screen size
+            }
+
+            // Initial setup
+            window.addEventListener('resize', handleResize);
+
+            // Hide/show GUI with 'H' key
+            window.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'h') {
+                    //dat.GUI.toggleHide();
+                    const guiElement = gui.domElement;
+                    guiElement.style.display = guiElement.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+
+            handleResize(); // Call once to set initial size
+            setupGUI();
+            animate(); // Start the animation loop
+        });
+    </script>
+</body>
+</html>

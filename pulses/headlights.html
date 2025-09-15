@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project: "Passing Car" Dynamic Lighting Simulation v3</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="lightingCanvas"></canvas>
+    <div class="info">Press 'H' to hide/show controls</div>
+
+    <!-- CDN for dat.GUI library -->
+    <script src="dat.gui.0.7.9.min.js"></script>
+
+    <script>
+        /**
+         * Project: "Passing Car" Dynamic Lighting Simulation v3
+         * 
+         * New Features:
+         * - Randomized trajectory angle for each car's path across the screen.
+         * - Configurable max trajectory angle in the control panel.
+         */
+
+        // 1. SETUP & INITIALIZATION
+        // =========================================================================
+        const canvas = document.getElementById('lightingCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let activeCars = [];
+        let gui;
+
+        function setupCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        // 2. CONFIGURATION & CONTROL PANEL
+        // =========================================================================
+        const config = {
+            timing: {
+                durationMin: 1.0,
+                durationMax: 4.0,
+                delayMin: 0.30,
+                delayMax: 1.1
+            },
+            appearance: {
+                yPosMin: 0.21,
+                yPosMax: 0.79,
+                beamWidthMin: 0.15,
+                beamWidthMax: 0.30,
+                maxOpacityMin: 0.01,
+                maxOpacityMax: 0.15,
+                beamSeparationMin: 0.05,
+                beamSeparationMax: 0.10,
+                taillightChance: 0.15
+            },
+            effects: {
+                fadeSpeed: 0.04,
+                jitterMax: 5,
+                beamAngleMax: 10.0,
+                // *** NEW: Max angle for the car's overall path ***
+                trajectoryAngleMax: 3.6
+            },
+            colors: {
+                warm: { r: 255, g: 245, b: 220 },
+                cool: { r: 220, g: 235, b: 255 },
+                taillight: { r: 220, g: 20, b: 20 }
+            }
+        };
+
+        function setupGUI() {
+            gui = new dat.GUI();
+            
+            const f1 = gui.addFolder('Timing & Frequency');
+            f1.add(config.timing, 'durationMin', 1.0, 10.0).name('Min Duration (s)');
+            f1.add(config.timing, 'durationMax', 1.0, 10.0).name('Max Duration (s)');
+            f1.add(config.timing, 'delayMin', 0.5, 10.0).name('Min Delay (s)');
+            f1.add(config.timing, 'delayMax', 0.5, 10.0).name('Max Delay (s)');
+            f1.open();
+
+            const f2 = gui.addFolder('Light Appearance');
+            f2.add(config.appearance, 'yPosMin', 0.0, 1.0).name('Min Y Position');
+            f2.add(config.appearance, 'yPosMax', 0.0, 1.0).name('Max Y Position');
+            f2.add(config.appearance, 'beamWidthMin', 0.05, 0.8).name('Min Beam Width');
+            f2.add(config.appearance, 'beamWidthMax', 0.05, 0.8).name('Max Beam Width');
+            f2.add(config.appearance, 'maxOpacityMin', 0.01, 0.4).name('Min Peak Opacity');
+            f2.add(config.appearance, 'maxOpacityMax', 0.01, 0.4).name('Max Peak Opacity');
+            f2.add(config.appearance, 'beamSeparationMin', 0.01, 0.2).name('Min Beam Separation');
+            f2.add(config.appearance, 'beamSeparationMax', 0.01, 0.2).name('Max Beam Separation');
+            f2.open();
+
+            const f3 = gui.addFolder('Realism Effects');
+            f3.add(config.effects, 'fadeSpeed', 0.01, 0.5).step(0.01).name('Fade Speed (Trail)');
+            f3.add(config.effects, 'jitterMax', 0, 20).name('Max Jitter (px)');
+            f3.add(config.effects, 'beamAngleMax', 0, 45).name('Max Beam Angle (deg)');
+            // *** NEW: GUI control for trajectory ***
+            f3.add(config.effects, 'trajectoryAngleMax', 0, 15).name('Max Trajectory (deg)');
+            f3.add(config.appearance, 'taillightChance', 0.0, 1.0).name('Taillight Chance');
+            f3.open();
+        }
+
+
+        // 3. UTILITY FUNCTIONS
+        // =========================================================================
+        function randomRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function lerp(a, b, t) {
+            return a * (1 - t) + b * t;
+        }
+
+        function randomColor() {
+            if (Math.random() < config.appearance.taillightChance) {
+                return { color: config.colors.taillight, isTaillight: true };
+            }
+            const t = Math.random();
+            const color = {
+                r: Math.round(lerp(config.colors.warm.r, config.colors.cool.r, t)),
+                g: Math.round(lerp(config.colors.warm.g, config.colors.cool.g, t)),
+                b: Math.round(lerp(config.colors.warm.b, config.colors.cool.b, t)),
+            };
+            return { color: color, isTaillight: false };
+        }
+
+
+        // 4. THE "CAR" CLASS
+        // =========================================================================
+        class Car {
+            constructor() {
+                // Generate the unique "DNA" for this car
+                this.duration = randomRange(config.timing.durationMin, config.timing.durationMax) * 1000;
+                this.direction = Math.random() > 0.5 ? 'left-to-right' : 'right-to-left';
+                this.yPosition = randomRange(config.appearance.yPosMin, config.appearance.yPosMax) * height; // Base Y at screen center
+                
+                const colorData = randomColor();
+                this.color = colorData.color;
+                this.isTaillight = colorData.isTaillight;
+
+                this.beamWidth = randomRange(config.appearance.beamWidthMin, config.appearance.beamWidthMax) * width;
+                if (this.isTaillight) this.beamWidth *= 0.5;
+                
+                this.maxOpacity = randomRange(config.appearance.maxOpacityMin, config.appearance.maxOpacityMax);
+                this.jitterAmount = randomRange(0, config.effects.jitterMax);
+                this.beamSeparation = randomRange(config.appearance.beamSeparationMin, config.appearance.beamSeparationMax) * width;
+                this.beamAngle1 = randomRange(-config.effects.beamAngleMax, config.effects.beamAngleMax);
+                this.beamAngle2 = randomRange(-config.effects.beamAngleMax, config.effects.beamAngleMax);
+
+                // *** NEW: Set a unique trajectory angle for this car ***
+                this.trajectoryAngle = randomRange(-config.effects.trajectoryAngleMax, config.effects.trajectoryAngleMax);
+
+                // Animation state
+                this.startTime = Date.now();
+                this.progress = 0;
+            }
+
+            update() {
+                const elapsedTime = Date.now() - this.startTime;
+                this.progress = elapsedTime / this.duration;
+
+                const centerFactor = Math.sin(this.progress * Math.PI);
+                this.currentOpacity = this.maxOpacity * centerFactor;
+
+                // Calculate horizontal position (x)
+                const startX = -this.beamWidth;
+                const endX = width + this.beamWidth;
+                if (this.direction === 'left-to-right') {
+                    this.x = lerp(startX, endX, this.progress);
+                } else {
+                    this.x = lerp(endX, startX, this.progress);
+                }
+                
+                // *** NEW: Calculate vertical position (y) based on trajectory ***
+                const radians = this.trajectoryAngle * Math.PI / 180;
+                const horizontalDistanceFromCenter = this.x - (width / 2);
+                const yOffset = horizontalDistanceFromCenter * Math.tan(radians);
+                this.currentY = this.yPosition + yOffset;
+
+                // Apply jitter
+                this.jitter = (Math.random() - 0.5) * this.jitterAmount;
+            }
+
+            draw(ctx) {
+                if (this.currentOpacity <= 0) return;
+                this.drawBeam(ctx, this.x - this.beamSeparation / 2, this.beamAngle1);
+                this.drawBeam(ctx, this.x + this.beamSeparation / 2, this.beamAngle2);
+            }
+
+            drawBeam(ctx, xPos, angle) {
+                ctx.save();
+                // *** UPDATED: Use the dynamic `currentY` for positioning ***
+                ctx.translate(xPos, this.currentY + this.jitter);
+                ctx.rotate(angle * Math.PI / 180);
+
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.beamWidth);
+                const colorStr = `${this.color.r}, ${this.color.g}, ${this.color.b}`;
+                gradient.addColorStop(0, `rgba(${colorStr}, ${this.currentOpacity})`);
+                gradient.addColorStop(1, `rgba(${colorStr}, 0)`);
+
+                ctx.fillStyle = gradient;
+                
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.beamWidth, this.beamWidth * 0.4, 0, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            isDone() {
+                return this.progress >= 1;
+            }
+        }
+
+        // 5. ANIMATION & SPAWNING LOGIC
+        // =========================================================================
+        function spawnCar() {
+            activeCars.push(new Car());
+            const nextDelay = randomRange(config.timing.delayMin, config.timing.delayMax) * 1000;
+            setTimeout(spawnCar, nextDelay);
+        }
+
+        function animate() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = `rgba(0, 0, 0, ${config.effects.fadeSpeed})`;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.globalCompositeOperation = 'lighter';
+            
+            activeCars.forEach(car => {
+                car.update();
+                car.draw(ctx);
+            });
+
+            activeCars = activeCars.filter(car => !car.isDone());
+
+            requestAnimationFrame(animate);
+        }
+
+        // 6. EVENT LISTENERS & INITIALIZATION
+        // =========================================================================
+        window.addEventListener('resize', setupCanvas);
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') {
+                const guiElement = gui.domElement;
+                guiElement.style.display = guiElement.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+
+        setupCanvas();
+        setupGUI();
+        spawnCar();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Projector Lighting Tool (with Trails)</title>
+    <style>
+        /* Basic styles to ensure the canvas fills the screen */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #555;
+            font-size: 14px;
+            pointer-events: none; /* Make text non-interactive */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    <div class="info">Press 'H' to toggle controls | 'F' for fullscreen</div>
+
+    <!-- 3rd party library for the control panel -->
+    <script src="dat.gui.0.7.9.min.js"></script>
+
+    <script>
+        // A. SETUP AND CONFIGURATION
+        // ====================================================================
+
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuration object that dat.GUI will control
+        const config = {
+            // Animation
+            isPaused: false,
+            duration: 5000,      // Total animation time in ms for one pass
+            loopMode: 'Ping-Pong', // 'Sweep' or 'Ping-Pong'
+            easing: 'easeInOutSine',
+
+            // Visuals
+            minWidth: 20,
+            maxWidth: 150,
+            blurAmount: 0.5,
+            beamOpacity: 0.25,
+            trailLength: 0.9,
+            colorPreset: 'Warm White',
+            
+            // Utility
+            reset: () => { 
+                startTime = performance.now();
+                pingPongProgress = 0;
+                pingPongDirection = 1;
+            }
+        };
+        
+        // Define color presets
+        const colorPresets = {
+            'Warm White': '255, 240, 220',
+            'Midnight White': '210, 225, 255',
+            'Winter White': '230, 245, 255',
+            'Pure White': '255, 255, 255',
+            'Amber': '255, 191, 0',
+            'Deep Sky Blue': '0, 191, 255',
+            'Crimson': '220, 20, 60',
+            'Lime': '50, 205, 50',
+        };
+
+        // B. EASING FUNCTIONS
+        // ====================================================================
+
+        const easingFunctions = {
+            linear: t => t,
+            easeInSine: t => 1 - Math.cos((t * Math.PI) / 2),
+            easeOutSine: t => Math.sin((t * Math.PI) / 2),
+            easeInOutSine: t => -(Math.cos(Math.PI * t) - 1) / 2,
+            easeInCubic: t => t * t * t,
+            easeOutCubic: t => 1 - Math.pow(1 - t, 3),
+        };
+
+        // C. ANIMATION STATE
+        // ====================================================================
+        
+        let startTime = performance.now();
+        let pingPongProgress = 0;
+        let pingPongDirection = 1; // 1 for forward, -1 for reverse
+        let lastTime = 0;
+        let isResuming = false; // Tracks if we just unpaused
+        let easedProgress = 0; // NEW: Stores the beam's position, moved to outer scope
+
+
+        // D. INITIALIZATION
+        // ====================================================================
+
+        function setup() {
+            // Setup dat.GUI control panel
+            const gui = new dat.GUI();
+            
+            const animFolder = gui.addFolder('Animation');
+            animFolder.add(config, 'isPaused').name('Pause Movement'); // Updated name
+            animFolder.add(config, 'duration', 1000, 20000).name('Duration (ms)');
+            animFolder.add(config, 'loopMode', ['Sweep', 'Ping-Pong']).name('Loop Mode');
+            animFolder.add(config, 'easing', Object.keys(easingFunctions)).name('Easing');
+            animFolder.add(config, 'reset').name('Reset Animation');
+            animFolder.open();
+
+            const visualFolder = gui.addFolder('Visuals');
+            visualFolder.add(config, 'minWidth', 1, 200).name('Min Width');
+            visualFolder.add(config, 'maxWidth', 50, 1500).name('Max Width');
+            visualFolder.add(config, 'beamOpacity', 0.0, 1.0).name('Beam Opacity').step(0.01);
+            visualFolder.add(config, 'trailLength', 0.0, 0.99).name('Trail Length').step(0.01);
+            visualFolder.add(config, 'blurAmount', 0.01, 0.9).name('Edge Softness');
+            visualFolder.add(config, 'colorPreset', Object.keys(colorPresets)).name('Color');
+            visualFolder.open();
+            
+            // Handle window resize
+            window.addEventListener('resize', handleResize, false);
+            handleResize(); // Initial size set
+
+            // Handle keyboard controls
+            window.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'h') {
+                    gui.toggleHide();
+                }
+                if (e.key.toLowerCase() === 'f') {
+                    toggleFullScreen();
+                }
+            });
+
+            // Start the main animation loop
+            lastTime = performance.now();
+            requestAnimationFrame(animate);
+        }
+
+        function handleResize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+
+        // E. ANIMATION LOOP
+        // ====================================================================
+
+        function animate(timestamp) {
+            // --- Part 1: MOVEMENT LOGIC (Can be paused) ---
+            if (!config.isPaused) {
+                // On the first frame after unpausing, adjust timers to prevent a visual jump.
+                if (isResuming) {
+                    const pauseDuration = timestamp - lastTime;
+                    startTime += pauseDuration;
+                    isResuming = false;
+                }
+
+                const deltaTime = timestamp - lastTime;
+                lastTime = timestamp;
+
+                // 1a. Calculate Progress (0.0 to 1.0)
+                let rawProgress;
+                if (config.loopMode === 'Sweep') {
+                    const elapsedTime = timestamp - startTime;
+                    rawProgress = (elapsedTime % config.duration) / config.duration;
+                } else { // Ping-Pong
+                    pingPongProgress += (deltaTime / config.duration) * pingPongDirection;
+                    if (pingPongProgress >= 1.0) {
+                        pingPongProgress = 1.0;
+                        pingPongDirection = -1;
+                    } else if (pingPongProgress <= 0.0) {
+                        pingPongProgress = 0.0;
+                        pingPongDirection = 1;
+                    }
+                    rawProgress = pingPongProgress;
+                }
+
+                // 1b. Apply Easing and store it
+                easedProgress = easingFunctions[config.easing](rawProgress);
+
+            } else {
+                // If paused, set a flag so we know to adjust timers when we resume.
+                isResuming = true;
+            }
+
+            // --- Part 2: VISUALS AND DRAWING (Always runs) ---
+            
+            // 2. Calculate Dynamic Width and Position using the (potentially frozen) progress
+            const widthProgress = Math.sin(easedProgress * Math.PI);
+            const currentWidth = config.minWidth + (config.maxWidth - config.minWidth) * widthProgress;
+            const currentX = easedProgress * canvas.width;
+            
+            // 3. Drawing Logic
+            // =================================
+            // Set blend mode to default for clearing
+            ctx.globalCompositeOperation = 'source-over';
+
+            // FADE-OUT EFFECT FOR TRAIL
+            const fadeAlpha = 1.0 - config.trailLength;
+            ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // ADDITIVE BLENDING FOR GLOW
+            ctx.globalCompositeOperation = 'lighter';
+            
+            // Create a horizontal linear gradient for the soft-edged beam
+            const gradientStart = currentX - currentWidth / 2;
+            const gradientEnd = currentX + currentWidth / 2;
+            const gradient = ctx.createLinearGradient(gradientStart, 0, gradientEnd, 0);
+
+            const beamColor = colorPresets[config.colorPreset];
+            const stopInner = config.blurAmount;
+            const stopOuter = 1 - config.blurAmount;
+
+            // Gradient stops
+            gradient.addColorStop(0, `rgba(${beamColor}, 0)`);
+            gradient.addColorStop(stopInner, `rgba(${beamColor}, ${config.beamOpacity})`);
+            gradient.addColorStop(stopOuter, `rgba(${beamColor}, ${config.beamOpacity})`);
+            gradient.addColorStop(1, `rgba(${beamColor}, 0)`);
+            
+            // Draw the new beam on top
+            ctx.fillStyle = gradient;
+            ctx.fillRect(gradientStart, 0, currentWidth, canvas.height);
+            
+            // Request the next frame
+            requestAnimationFrame(animate);
+        }
+
+        // F. START THE APPLICATION
+        // ====================================================================
+        setup();
+
+    </script>
+</body>
+</html>

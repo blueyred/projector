@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Light Leak Projector v3</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        .dg.main.hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="projector-canvas"></canvas>
+
+    <!-- CDN for simplex-noise library v2.4.0 (non-module) -->
+    <script src="simplex-noise.2.4.0.js"></script>
+    <!-- CDN for dat.GUI library -->
+    <script src="dat.gui.0.7.9.min.js"></script>
+
+    <script>
+        // --- 1. SETUP ---
+        const canvas = document.getElementById('projector-canvas');
+        const ctx = canvas.getContext('2d');
+        const simplex = new SimplexNoise();
+
+        let blobs = [];
+        let time = 0;
+        let lastTime = 0;
+        let globalIntensityMultiplier = 1.0;
+
+        // --- 2. CONFIGURATION & UI ---
+        const palettes = {
+            "Warm Sunset": ['#FFD700', '#FF8C00', '#FF4500', '#E32F2F', '#FFA07A'],
+            "Cool Moonlight": ['#4682B4', '#87CEEB', '#ADD8E6', '#B0C4DE', '#F0F8FF'],
+            "Forest Haze": ['#2E8B57', '#6B8E23', '#556B2F', '#9ACD32', '#3CB371'],
+            "Electric Dream": ['#FF00FF', '#00FFFF', '#7D00FF', '#FF007F', '#00FF7F']
+        };
+
+        const config = {
+            blobCount: 20,
+            speed: 0.1,
+            size: { min: 60, max: 250 },
+            intensity: 0.2,
+            fadeRate: 0.1,
+            palette: "Warm Sunset",
+            globalFadeCycle: 4, // Total cycle time in seconds. 0 to disable.
+            reset: () => resetSimulation()
+        };
+        
+        function hexToHsla(hex) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length == 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
+            else if (hex.length == 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+            r /= 255; g /= 255; b /= 255;
+            let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin, h = 0, s = 0, l = 0;
+            if (delta == 0) h = 0;
+            else if (cmax == r) h = ((g - b) / delta) % 6;
+            else if (cmax == g) h = (b - r) / delta + 2;
+            else h = (r - g) / delta + 4;
+            h = Math.round(h * 60);
+            if (h < 0) h += 360;
+            l = (cmax + cmin) / 2;
+            s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+            s = +(s * 100).toFixed(1);
+            l = +(l * 100).toFixed(1);
+            return { h, s, l };
+        }
+
+        let currentPalette = palettes[config.palette].map(hexToHsla);
+
+        function setupGUI() {
+            const gui = new dat.GUI();
+            gui.add(config, 'blobCount', 5, 50, 1).name('Blob Count');
+            gui.add(config, 'speed', 0.01, 0.5, 0.01).name('Speed');
+            gui.add(config, 'intensity', 0.1, 1.0, 0.05).name('Blob Intensity');
+            gui.add(config, 'fadeRate', 0, 0.2, 0.005).name('Trail Fade Rate');
+            // NEW SLIDER for global fade
+            gui.add(config, 'globalFadeCycle', 0, 30, 1).name('Global Fade Cycle (s)');
+            
+            const sizeFolder = gui.addFolder('Size');
+            sizeFolder.add(config.size, 'min', 10, 100, 10).name('Min Radius');
+            sizeFolder.add(config.size, 'max', 50, 400, 10).name('Max Radius');
+            
+            gui.add(config, 'palette', Object.keys(palettes)).name('Palette').onChange(value => {
+                currentPalette = palettes[value].map(hexToHsla);
+                resetSimulation();
+            });
+            gui.add(config, 'reset').name('Reset Simulation');
+            
+            window.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'h') {
+                    document.querySelector('.dg.main').classList.toggle('hidden');
+                }
+            });
+        }
+
+        // --- 3. THE "LIGHT BLOB" CLASS ---
+        class LightBlob {
+            constructor() { this.reset(); }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = config.size.min + Math.random() * (config.size.max - config.size.min);
+                this.color = currentPalette[Math.floor(Math.random() * currentPalette.length)];
+                this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
+                this.life = 0;
+                this.duration = 5 + Math.random() * 5;
+                this.opacity = 0;
+            }
+
+            update(deltaTime) {
+                this.life += deltaTime;
+                
+                // 1. Movement
+                const noiseX = simplex.noise3D(this.noiseOffset.x, this.noiseOffset.y, time * config.speed);
+                const noiseY = simplex.noise3D(this.noiseOffset.x + 100, this.noiseOffset.y + 100, time * config.speed);
+                this.x = (noiseX + 1) / 2 * canvas.width;
+                this.y = (noiseY + 1) / 2 * canvas.height;
+
+                // 2. **NEW**: Clamp position to stay within screen bounds with a buffer
+                const buffer = 10;
+                this.x = Math.max(this.radius + buffer, Math.min(this.x, canvas.width - this.radius - buffer));
+                this.y = Math.max(this.radius + buffer, Math.min(this.y, canvas.height - this.radius - buffer));
+
+                // 3. Fading (Life Cycle)
+                const fadeInTime = this.duration * 0.25;
+                const fadeOutTime = this.duration * 0.75;
+                if (this.life < fadeInTime) { this.opacity = (this.life / fadeInTime) * config.intensity; } 
+                else if (this.life > fadeOutTime) { this.opacity = (1 - (this.life - fadeOutTime) / (this.duration - fadeOutTime)) * config.intensity; } 
+                else { this.opacity = config.intensity; }
+                this.opacity = Math.max(0, this.opacity);
+
+                if (this.life >= this.duration) { this.reset(); }
+            }
+
+            draw() {
+                // Apply the global intensity multiplier here
+                const finalOpacity = this.opacity * globalIntensityMultiplier;
+                if (finalOpacity <= 0) return;
+
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                const colorStr = `hsla(${this.color.h}, ${this.color.s}%, ${this.color.l}%, ${finalOpacity})`;
+                const transparentStr = `hsla(${this.color.h}, ${this.color.s}%, ${this.color.l}%, 0)`;
+
+                gradient.addColorStop(0.1, colorStr); // Start color slightly out for a softer core
+                gradient.addColorStop(1, transparentStr);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // --- 4. ANIMATION SYSTEM ---
+
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            blobs = [];
+            for (let i = 0; i < 50; i++) { blobs.push(new LightBlob()); }
+            setupGUI();
+            requestAnimationFrame(animate);
+        }
+        
+        function resetSimulation() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            blobs.forEach(blob => blob.reset());
+            time = 0; // Reset global time to restart the fade cycle
+        }
+
+        function updateGlobalIntensity() {
+            if (config.globalFadeCycle <= 0) {
+                globalIntensityMultiplier = 1.0;
+                return;
+            }
+
+            const cycleTime = time % config.globalFadeCycle;
+            const fadeInDuration = config.globalFadeCycle * 0.2; // 20% of cycle to fade in
+            const fadeOutDuration = config.globalFadeCycle * 0.35; // 25% of cycle to fade out
+            const holdStartTime = fadeInDuration;
+            const holdEndTime = config.globalFadeCycle - fadeOutDuration;
+
+            if (cycleTime < holdStartTime) {
+                // Fading In
+                globalIntensityMultiplier = cycleTime / fadeInDuration;
+            } else if (cycleTime > holdEndTime) {
+                // Fading Out
+                globalIntensityMultiplier = 1.0 - ((cycleTime - holdEndTime) / fadeOutDuration);
+            } else {
+                // Holding at full intensity
+                globalIntensityMultiplier = 1.0;
+            }
+            globalIntensityMultiplier = Math.max(0, Math.min(1, globalIntensityMultiplier));
+        }
+
+        function animate(timestamp) {
+            const deltaTime = (timestamp - lastTime) / 1000 || 0;
+            lastTime = timestamp;
+
+            // Update global time and intensity
+            time += deltaTime;
+            updateGlobalIntensity();
+
+            // Screen decay / fade effect
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = `rgba(0, 0, 0, ${config.fadeRate})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Additive blending for blobs
+            ctx.globalCompositeOperation = 'lighter';
+
+            for (let i = 0; i < config.blobCount; i++) {
+                blobs[i].update(deltaTime);
+                blobs[i].draw();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // --- 5. EVENT LISTENERS & INITIALIZATION ---
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            resetSimulation();
+        });
+
+        init();
+
+    </script>
+</body>
+</html>

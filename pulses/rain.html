@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rain on a Window Pane Simulation</title>
+    <!-- dat.GUI library for real-time controls -->
+    <script src="dat.gui.0.7.9.min.js"></script>
+    <style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+}
+
+canvas {
+    display: block;
+}
+    </style>
+</head>
+<body>
+    <canvas id="rain-canvas"></canvas>
+<script>
+// --- Basic Setup ---
+// --- Basic Setup ---
+const canvas = document.getElementById('rain-canvas');
+const ctx = canvas.getContext('2d');
+
+let raindrops = [];
+
+// --- Configuration Object for Live Control ---
+const config = {
+    maxDrops: 1100,
+    spawnRate: 3.3,
+    minDropSize: 2,
+    maxDropSize: 9,
+    // Physics Parameters
+    gravity: 0.15,
+    maxVelocity: 50,
+    dragFactor: 0.98, // Global drag, closer to 1 means less drag
+    wobbleFactor: 3.0,
+    stickChance: 0.009, // 0.5% chance per frame to get "stuck"
+    stuckDuration: 30, // Max frames a drop can be stuck
+    // Visual Parameters
+    fadeEffect: 0.05 // Alpha of clearRect fill. Lower values = longer trails.
+};
+
+// --- The Raindrop Class ---
+class Raindrop {
+    constructor() {
+        // Initialize at a random position
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.prevX = this.x; // Store previous position for smooth line drawing
+        this.prevY = this.y;
+
+        // Randomize properties for an organic look
+        this.radius = Math.random() * (config.maxDropSize - config.minDropSize) + config.minDropSize;
+        this.velocityY = 0;
+        
+        // A random delay before the drop starts streaking (the "splat" phase)
+        this.delay = Math.random() * 100;
+
+        // --- NEW Physics Properties ---
+        this.isStuck = false;
+        this.stuckTime = 0;
+        // Each drop gets a slightly different drag to vary terminal velocity
+        this.drag = config.dragFactor - (Math.random() * 0.02);
+    }
+
+    update() {
+        // Store previous position before updating
+        this.prevX = this.x;
+        this.prevY = this.y;
+
+        // Handle the initial "splat" delay
+        if (this.delay > 0) {
+            this.delay--;
+            return;
+        }
+
+        // --- NEW "Stick-and-Slip" Logic ---
+        if (this.isStuck) {
+            this.stuckTime--;
+            if (this.stuckTime <= 0) {
+                this.isStuck = false;
+            }
+            // While stuck, the drop barely moves, just wobbles
+            this.x += (Math.random() - 0.5) * (config.wobbleFactor * 0.1);
+            return; // Stop further physics updates this frame
+        }
+
+        // Apply gravity
+        this.velocityY += config.gravity;
+        
+        // Apply individual drag
+        this.velocityY *= this.drag;
+
+        // Cap the maximum velocity
+        if (this.velocityY > config.maxVelocity) {
+            this.velocityY = config.maxVelocity;
+        }
+
+        // Update the y position
+        this.y += this.velocityY;
+
+        // Add a subtle horizontal "wobble"
+        this.x += (Math.random() - 0.5) * config.wobbleFactor;
+
+        // Random chance to get stuck if moving
+        if (Math.random() < config.stickChance && this.velocityY > 1) {
+            this.isStuck = true;
+            this.stuckTime = Math.random() * config.stuckDuration;
+            this.velocityY *= 0.1; // Drastically slow down upon sticking
+        }
+    }
+
+    draw() {
+        // --- NEW Drawing Method: Line for smooth trails ---
+        ctx.beginPath();
+        ctx.moveTo(this.prevX, this.prevY);
+        ctx.lineTo(this.x, this.y);
+
+        // Style the line to look like a moving drop
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = this.radius * 2; // Diameter of the drop
+        ctx.lineCap = 'round'; // Creates the circular drop head/tail
+        
+        // Add a soft glow effect to sell the "lit" look
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 10;
+        
+        ctx.stroke();
+
+        // Reset shadow for other elements (important for performance)
+        ctx.shadowBlur = 0;
+    }
+}
+
+// --- Main Simulation Loop ---
+function animate() {
+    requestAnimationFrame(animate);
+
+    ctx.fillStyle = `rgba(0, 0, 0, ${config.fadeEffect})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (Math.random() < config.spawnRate && raindrops.length < config.maxDrops) {
+        raindrops.push(new Raindrop());
+    }
+
+    for (let i = raindrops.length - 1; i >= 0; i--) {
+        const drop = raindrops[i];
+        drop.update();
+        drop.draw();
+
+        if (drop.y - drop.radius > canvas.height) {
+            raindrops.splice(i, 1);
+        }
+    }
+}
+
+// --- Utility Functions ---
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// --- Setup Controls and Event Listeners ---
+function setupControls() {
+    const gui = new dat.GUI();
+    gui.add(config, 'maxDrops', 100, 1500).step(10).name('Max Drops');
+    gui.add(config, 'spawnRate', 0.05, 5).step(0.05).name('Spawn Rate');
+    gui.add(config, 'fadeEffect', 0.001, 0.3).step(0.001).name('Trail Length (Fade)');
+    
+    const sizeFolder = gui.addFolder('Drop Size');
+    sizeFolder.add(config, 'minDropSize', 0.5, 5).step(0.1).name('Min Size');
+    sizeFolder.add(config, 'maxDropSize', 0.5, 15).step(0.1).name('Max Size');
+    
+    const physicsFolder = gui.addFolder('Advanced Physics');
+    physicsFolder.add(config, 'gravity', 0.01, 0.5).step(0.01).name('Gravity');
+    physicsFolder.add(config, 'maxVelocity', 5, 50).step(1).name('Max Velocity');
+    physicsFolder.add(config, 'dragFactor', 0.75, 1.2).step(0.001).name('Air Drag');
+    physicsFolder.add(config, 'wobbleFactor', 0, 4).step(0.1).name('Wobble Factor');
+    physicsFolder.add(config, 'stickChance', 0, 0.5).step(0.001).name('Stick Chance');
+    physicsFolder.add(config, 'stuckDuration', 0, 100).step(1).name('Stuck Duration');
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'h') {
+            const guiElement = document.querySelector('.dg.main');
+            if (guiElement) {
+                guiElement.style.display = guiElement.style.display === 'none' ? '' : 'none';
+            }
+        }
+    });
+
+    const info = document.createElement('div');
+    info.style.position = 'absolute';
+    info.style.bottom = '10px';
+    info.style.left = '10px';
+    info.style.color = 'rgba(255, 255, 255, 0.5)';
+    info.style.fontFamily = 'monospace';
+    info.style.fontSize = '12px';
+    info.textContent = "Press 'H' to hide/show controls";
+    document.body.appendChild(info);
+}
+
+// --- Initialization ---
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+setupControls();
+animate();
+</script>
+</body>
+</html>
